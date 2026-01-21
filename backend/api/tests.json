@@ -1,0 +1,24 @@
+{
+  "tests": [
+    {
+      "name": "Get all subjects",
+      "method": "GET",
+      "path": "/?action=get_subjects",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "subjects": "array"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get users by role",
+      "method": "GET",
+      "path": "/?action=get_users&role=admin",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "users": "array"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

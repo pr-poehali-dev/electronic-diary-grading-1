@@ -1,0 +1,35 @@
+{
+  "tests": [
+    {
+      "name": "Login with valid credentials",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "username": "kostya",
+        "password": "roblox-top"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true,
+        "user": {
+          "role": "admin"
+        }
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Login with invalid credentials",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "username": "wrong",
+        "password": "wrong"
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
