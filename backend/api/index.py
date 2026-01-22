@@ -61,6 +61,8 @@ def handler(event: dict, context) -> dict:
             return save_mark(cursor, conn, event)
         elif path == 'save_period_grade':
             return save_period_grade(cursor, conn, event)
+        elif path == 'delete_mark':
+            return delete_mark(cursor, conn, event)
         else:
             return error_response('Unknown action', 400)
             
@@ -475,6 +477,24 @@ def save_period_grade(cursor, conn, event):
             INSERT INTO period_grades (student_id, subject_id, teacher_id, period, final_grade)
             VALUES (%s, %s, %s, %s, %s)
         """, (student_id, subject_id, teacher_id, period, final_grade))
+    
+    conn.commit()
+    return success_response({'success': True})
+
+def delete_mark(cursor, conn, event):
+    body = json.loads(event.get('body', '{}'))
+    
+    student_id = body.get('studentId')
+    subject_id = body.get('subjectId')
+    date = body.get('date')
+    
+    if not all([student_id, subject_id, date]):
+        return error_response('Требуется studentId, subjectId и date')
+    
+    cursor.execute("""
+        DELETE FROM grades 
+        WHERE student_id = %s AND subject_id = %s AND grade_date = %s
+    """, (student_id, subject_id, date))
     
     conn.commit()
     return success_response({'success': True})
