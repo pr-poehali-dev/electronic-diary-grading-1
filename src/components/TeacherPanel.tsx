@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import Icon from '@/components/ui/icon';
+import GradeJournal from '@/components/GradeJournal';
 
 const API_URL = 'https://functions.poehali.dev/bfbeda34-cef5-4bdd-946d-7a5dcae64e26';
 
@@ -135,12 +136,17 @@ const TeacherPanel = ({ user, subjects, homework, loadTeacherData, toast }: Teac
   };
 
   return (
-    <Tabs defaultValue="grades" className="space-y-6">
+    <Tabs defaultValue="journal" className="space-y-6">
       <TabsList>
+        <TabsTrigger value="journal">Журнал оценок</TabsTrigger>
         <TabsTrigger value="grades">Выставить оценку</TabsTrigger>
         <TabsTrigger value="homework">Домашние задания</TabsTrigger>
         <TabsTrigger value="create-homework">Создать задание</TabsTrigger>
       </TabsList>
+
+      <TabsContent value="journal">
+        <GradeJournal user={user} subjects={subjects} toast={toast} />
+      </TabsContent>
 
       <TabsContent value="grades">
         <Card>

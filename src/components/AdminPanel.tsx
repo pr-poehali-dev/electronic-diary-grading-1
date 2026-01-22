@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import GradeJournal from '@/components/GradeJournal';
 
 const API_URL = 'https://functions.poehali.dev/bfbeda34-cef5-4bdd-946d-7a5dcae64e26';
 
@@ -86,7 +87,8 @@ const AdminPanel = ({ user, subjects, users, loadUsers, toast, getGradeColor }: 
     <Tabs defaultValue="users" className="space-y-6">
       <TabsList>
         <TabsTrigger value="users">Пользователи</TabsTrigger>
-        <TabsTrigger value="journal">Журнал оценок</TabsTrigger>
+        <TabsTrigger value="grade-journal">Журнал оценок</TabsTrigger>
+        <TabsTrigger value="journal">История оценок</TabsTrigger>
         <TabsTrigger value="create">Создать пользователя</TabsTrigger>
         <TabsTrigger value="subjects">Предметы</TabsTrigger>
       </TabsList>
@@ -130,6 +132,10 @@ const AdminPanel = ({ user, subjects, users, loadUsers, toast, getGradeColor }: 
             </Table>
           </CardContent>
         </Card>
+      </TabsContent>
+
+      <TabsContent value="grade-journal">
+        <GradeJournal user={user} subjects={subjects} toast={toast} />
       </TabsContent>
 
       <TabsContent value="journal">

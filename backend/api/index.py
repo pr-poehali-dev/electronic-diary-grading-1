@@ -53,6 +53,14 @@ def handler(event: dict, context) -> dict:
             return get_stats(cursor, event)
         elif path == 'get_all_grades':
             return get_all_grades(cursor)
+        elif path == 'get_classes':
+            return get_classes(cursor)
+        elif path == 'get_journal':
+            return get_journal(cursor, event)
+        elif path == 'save_mark':
+            return save_mark(cursor, conn, event)
+        elif path == 'save_period_grade':
+            return save_period_grade(cursor, conn, event)
         else:
             return error_response('Unknown action', 400)
             
@@ -330,3 +338,143 @@ def get_all_grades(cursor):
     
     grades = cursor.fetchall()
     return success_response({'grades': [dict(g) for g in grades]})
+
+def get_classes(cursor):
+    cursor.execute("SELECT DISTINCT class_name FROM users WHERE class_name IS NOT NULL AND class_name != '' ORDER BY class_name")
+    classes = [row['class_name'] for row in cursor.fetchall()]
+    return success_response({'classes': classes})
+
+def get_journal(cursor, event):
+    params = event.get('queryStringParameters', {})
+    subject_id = params.get('subjectId')
+    class_name = params.get('className')
+    period = params.get('period', '1_quarter')
+    
+    if not subject_id or not class_name:
+        return error_response('Требуется subjectId и className')
+    
+    cursor.execute("""
+        SELECT id, full_name, class_name 
+        FROM users 
+        WHERE role = 'student' AND class_name = %s
+        ORDER BY full_name
+    """, (class_name,))
+    students = [dict(row) for row in cursor.fetchall()]
+    
+    cursor.execute("""
+        SELECT student_id, grade_date, grade, mark_type, comment
+        FROM grades
+        WHERE subject_id = %s 
+        AND student_id IN (SELECT id FROM users WHERE class_name = %s)
+        AND (period = %s OR period IS NULL)
+        ORDER BY grade_date
+    """, (subject_id, class_name, period))
+    
+    grades_list = cursor.fetchall()
+    
+    cursor.execute("""
+        SELECT student_id, final_grade
+        FROM period_grades
+        WHERE subject_id = %s 
+        AND student_id IN (SELECT id FROM users WHERE class_name = %s)
+        AND period = %s
+    """, (subject_id, class_name, period))
+    
+    period_grades = {row['student_id']: row['final_grade'] for row in cursor.fetchall()}
+    
+    dates = sorted(list(set([str(g['grade_date']) for g in grades_list])))
+    
+    journal = {}
+    for student in students:
+        journal[student['id']] = {}
+        for grade in grades_list:
+            if grade['student_id'] == student['id']:
+                date_str = str(grade['grade_date'])
+                journal[student['id']][date_str] = {
+                    'grade': grade['grade'],
+                    'mark_type': grade['mark_type'],
+                    'comment': grade['comment']
+                }
+        
+        if student['id'] in period_grades:
+            journal[student['id']]['period_grade'] = period_grades[student['id']]
+    
+    return success_response({
+        'students': students,
+        'journal': journal,
+        'dates': dates
+    })
+
+def save_mark(cursor, conn, event):
+    body = json.loads(event.get('body', '{}'))
+    
+    student_id = body.get('studentId')
+    subject_id = body.get('subjectId')
+    teacher_id = body.get('teacherId')
+    date = body.get('date')
+    mark_type = body.get('markType', 'grade')
+    grade = body.get('grade')
+    comment = body.get('comment', '')
+    period = body.get('period', '1_quarter')
+    
+    if not all([student_id, subject_id, teacher_id, date, mark_type]):
+        return error_response('Заполните все обязательные поля')
+    
+    if mark_type == 'grade' and not grade:
+        return error_response('Требуется оценка для типа "grade"')
+    
+    cursor.execute("""
+        SELECT id FROM grades 
+        WHERE student_id = %s AND subject_id = %s AND grade_date = %s
+    """, (student_id, subject_id, date))
+    
+    existing = cursor.fetchone()
+    
+    if existing:
+        cursor.execute("""
+            UPDATE grades 
+            SET grade = %s, mark_type = %s, comment = %s, teacher_id = %s, period = %s
+            WHERE id = %s
+        """, (grade, mark_type, comment, teacher_id, period, existing['id']))
+    else:
+        cursor.execute("""
+            INSERT INTO grades (student_id, subject_id, teacher_id, grade, mark_type, comment, grade_date, period)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (student_id, subject_id, teacher_id, grade, mark_type, comment, date, period))
+    
+    conn.commit()
+    return success_response({'success': True})
+
+def save_period_grade(cursor, conn, event):
+    body = json.loads(event.get('body', '{}'))
+    
+    student_id = body.get('studentId')
+    subject_id = body.get('subjectId')
+    teacher_id = body.get('teacherId')
+    period = body.get('period')
+    final_grade = body.get('finalGrade')
+    
+    if not all([student_id, subject_id, teacher_id, period, final_grade]):
+        return error_response('Заполните все обязательные поля')
+    
+    cursor.execute("""
+        SELECT id FROM period_grades 
+        WHERE student_id = %s AND subject_id = %s AND period = %s
+    """, (student_id, subject_id, period))
+    
+    existing = cursor.fetchone()
+    
+    if existing:
+        cursor.execute("""
+            UPDATE period_grades 
+            SET final_grade = %s, teacher_id = %s
+            WHERE id = %s
+        """, (final_grade, teacher_id, existing['id']))
+    else:
+        cursor.execute("""
+            INSERT INTO period_grades (student_id, subject_id, teacher_id, period, final_grade)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (student_id, subject_id, teacher_id, period, final_grade))
+    
+    conn.commit()
+    return success_response({'success': True})
