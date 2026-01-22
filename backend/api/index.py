@@ -51,6 +51,8 @@ def handler(event: dict, context) -> dict:
             return assign_teacher_subject(cursor, conn, event)
         elif path == 'get_stats':
             return get_stats(cursor, event)
+        elif path == 'get_all_grades':
+            return get_all_grades(cursor)
         else:
             return error_response('Unknown action', 400)
             
@@ -312,3 +314,19 @@ def get_stats(cursor, event):
         'good': good,
         'average': round(average, 2)
     })
+
+def get_all_grades(cursor):
+    cursor.execute("""
+        SELECT g.id, g.grade, g.comment, g.grade_date,
+               s.name as subject_name,
+               st.full_name as student_name,
+               t.full_name as teacher_name
+        FROM grades g
+        JOIN subjects s ON g.subject_id = s.id
+        JOIN users st ON g.student_id = st.id
+        JOIN users t ON g.teacher_id = t.id
+        ORDER BY g.grade_date DESC
+    """)
+    
+    grades = cursor.fetchall()
+    return success_response({'grades': [dict(g) for g in grades]})

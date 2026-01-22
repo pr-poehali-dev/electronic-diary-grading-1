@@ -235,9 +235,6 @@ const Index = () => {
             <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
               {isLoading ? 'Вход...' : 'Войти'}
             </Button>
-            <p className="text-xs text-center text-slate-500 mt-4">
-              Администратор: kostya / roblox-top
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -277,7 +274,7 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {user?.role === 'admin' && <AdminPanel user={user} subjects={subjects} users={users} loadUsers={loadUsers} toast={toast} />}
+        {user?.role === 'admin' && <AdminPanel user={user} subjects={subjects} users={users} loadUsers={loadUsers} toast={toast} getGradeColor={getGradeColor} />}
         {user?.role === 'teacher' && <TeacherPanel user={user} subjects={subjects} homework={homework} loadTeacherData={loadTeacherData} toast={toast} />}
         {user?.role === 'student' && <StudentPanel user={user} grades={grades} homework={homework} stats={stats} getGradeColor={getGradeColor} />}
       </main>
@@ -285,7 +282,7 @@ const Index = () => {
   );
 };
 
-function AdminPanel({ user, subjects, users, loadUsers, toast }: any) {
+function AdminPanel({ user, subjects, users, loadUsers, toast, getGradeColor }: any) {
   const [newUser, setNewUser] = useState({ username: '', password: '', role: '', fullName: '', email: '', phone: '', className: '' });
 
   const handleCreateUser = async () => {
@@ -315,10 +312,29 @@ function AdminPanel({ user, subjects, users, loadUsers, toast }: any) {
     }
   };
 
+  const [allGrades, setAllGrades] = useState<Grade[]>([]);
+
+  useEffect(() => {
+    loadAllGrades();
+  }, []);
+
+  const loadAllGrades = async () => {
+    try {
+      const response = await fetch(`${API_URL}?action=get_all_grades`);
+      const data = await response.json();
+      if (response.ok) {
+        setAllGrades(data.grades);
+      }
+    } catch (error) {
+      console.error('Error loading all grades:', error);
+    }
+  };
+
   return (
     <Tabs defaultValue="users" className="space-y-6">
       <TabsList>
         <TabsTrigger value="users">Пользователи</TabsTrigger>
+        <TabsTrigger value="journal">Журнал оценок</TabsTrigger>
         <TabsTrigger value="create">Создать пользователя</TabsTrigger>
         <TabsTrigger value="subjects">Предметы</TabsTrigger>
       </TabsList>
@@ -358,6 +374,53 @@ function AdminPanel({ user, subjects, users, loadUsers, toast }: any) {
                     <TableCell>{u.email || '-'}</TableCell>
                   </TableRow>
                 ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="journal">
+        <Card>
+          <CardHeader>
+            <CardTitle>Журнал оценок всех учеников</CardTitle>
+            <CardDescription>Все оценки, выставленные в системе</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Дата</TableHead>
+                  <TableHead>Ученик</TableHead>
+                  <TableHead>Предмет</TableHead>
+                  <TableHead>Оценка</TableHead>
+                  <TableHead>Учитель</TableHead>
+                  <TableHead>Комментарий</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allGrades.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-slate-500">
+                      Нет оценок
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  allGrades.map((grade: any) => (
+                    <TableRow key={grade.id}>
+                      <TableCell className="text-sm">{grade.grade_date}</TableCell>
+                      <TableCell className="font-medium">{grade.student_name}</TableCell>
+                      <TableCell>{grade.subject_name}</TableCell>
+                      <TableCell>
+                        <Badge className={`${getGradeColor(grade.grade)} border font-bold`}>
+                          {grade.grade}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{grade.teacher_name}</TableCell>
+                      <TableCell className="text-sm text-slate-600">{grade.comment || '-'}</TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
