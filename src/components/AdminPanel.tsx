@@ -128,14 +128,15 @@ const AdminPanel = ({ user, subjects, users, loadUsers, toast, getGradeColor }: 
   };
 
   return (
-    <Tabs defaultValue="users" className="space-y-6">
-      <TabsList>
-        <TabsTrigger value="users">Пользователи</TabsTrigger>
-        <TabsTrigger value="grade-journal">Журнал оценок</TabsTrigger>
-        <TabsTrigger value="journal">История оценок</TabsTrigger>
-        <TabsTrigger value="create">Создать пользователя</TabsTrigger>
-        <TabsTrigger value="subjects">Предметы</TabsTrigger>
-      </TabsList>
+    <>
+      <Tabs defaultValue="users" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="users">Пользователи</TabsTrigger>
+          <TabsTrigger value="grade-journal">Журнал оценок</TabsTrigger>
+          <TabsTrigger value="journal">История оценок</TabsTrigger>
+          <TabsTrigger value="create">Создать пользователя</TabsTrigger>
+          <TabsTrigger value="subjects">Предметы</TabsTrigger>
+        </TabsList>
 
       <TabsContent value="users">
         <Card>
@@ -314,26 +315,26 @@ const AdminPanel = ({ user, subjects, users, loadUsers, toast, getGradeColor }: 
           </CardContent>
         </Card>
       </TabsContent>
-    </Tabs>
+      </Tabs>
 
-    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Удалить пользователя?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Вы уверены, что хотите удалить пользователя <strong>{userToDelete?.full_name}</strong>? 
-            Это действие нельзя отменить. Все оценки и задания этого пользователя будут удалены.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Отмена</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDeleteUser} className="bg-red-600 hover:bg-red-700">
-            Удалить
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  </>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить пользователя?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить пользователя <strong>{userToDelete?.full_name}</strong>? 
+              Это действие нельзя отменить. Все оценки и задания этого пользователя будут удалены.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-red-600 hover:bg-red-700">
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
