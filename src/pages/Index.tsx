@@ -411,10 +411,12 @@ function AdminPanel({ user, subjects, users, loadUsers, toast, getGradeColor }: 
                       <TableCell className="text-sm">{grade.grade_date}</TableCell>
                       <TableCell className="font-medium">{grade.student_name}</TableCell>
                       <TableCell>{grade.subject_name}</TableCell>
-                      <TableCell>
-                        <Badge className={`${getGradeColor(grade.grade)} border font-bold`}>
-                          {grade.grade}
-                        </Badge>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center">
+                          <div className={`${getGradeColor(grade.grade)} w-8 h-8 flex items-center justify-center rounded font-bold text-sm`}>
+                            {grade.grade}
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm">{grade.teacher_name}</TableCell>
                       <TableCell className="text-sm text-slate-600">{grade.comment || '-'}</TableCell>
