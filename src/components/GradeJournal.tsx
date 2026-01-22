@@ -105,6 +105,34 @@ const GradeJournal = ({ user, subjects, toast }: GradeJournalProps) => {
     setIsMarkDialog(true);
   };
 
+  const handleMarkSave = async (studentId: number, date: string, value: string) => {
+    try {
+      const response = await fetch(`${API_URL}?action=save_mark`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: studentId,
+          subjectId: parseInt(selectedSubject),
+          teacherId: user.id,
+          date: date,
+          markValue: value,
+          period: selectedPeriod
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast({ title: 'Успешно', description: 'Отметка сохранена' });
+        loadJournalData();
+      } else {
+        toast({ title: 'Ошибка', description: data.error || 'Не удалось сохранить отметку', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось сохранить отметку', variant: 'destructive' });
+    }
+  };
+
   const handleSaveMark = async () => {
     if (!selectedStudent || !selectedDate) return;
 
@@ -230,6 +258,7 @@ const GradeJournal = ({ user, subjects, toast }: GradeJournalProps) => {
             selectedClass={selectedClass}
             onMarkClick={openMarkDialog}
             onPeriodGradeChange={handleSavePeriodGrade}
+            onMarkSave={handleMarkSave}
           />
 
           <JournalLegend />

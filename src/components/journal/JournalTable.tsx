@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
 
@@ -15,6 +17,7 @@ interface JournalTableProps {
   selectedClass: string;
   onMarkClick: (studentId: number, date: string) => void;
   onPeriodGradeChange: (studentId: number, grade: string) => void;
+  onMarkSave: (studentId: number, date: string, value: string) => void;
 }
 
 const JournalTable = ({
@@ -24,16 +27,79 @@ const JournalTable = ({
   selectedSubject,
   selectedClass,
   onMarkClick,
-  onPeriodGradeChange
+  onPeriodGradeChange,
+  onMarkSave
 }: JournalTableProps) => {
+  const [editingCell, setEditingCell] = useState<{ studentId: number; date: string } | null>(null);
+  const [inputValue, setInputValue] = useState('');
+
+  const handleCellClick = (studentId: number, date: string) => {
+    const entry = journalData[studentId]?.[date];
+    let currentValue = '';
+    
+    if (entry) {
+      if (entry.mark_type === 'grade') {
+        currentValue = entry.grade?.toString() || '';
+      } else if (entry.mark_type === 'absent') {
+        currentValue = 'Н';
+      } else if (entry.mark_type === 'excused') {
+        currentValue = 'П';
+      } else if (entry.mark_type === 'sick') {
+        currentValue = 'Б';
+      } else if (entry.mark_type === 'not_attested') {
+        currentValue = 'Н/А';
+      }
+    }
+    
+    setInputValue(currentValue);
+    setEditingCell({ studentId, date });
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent, studentId: number, date: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (inputValue.trim()) {
+        onMarkSave(studentId, date, inputValue.trim());
+      }
+      setEditingCell(null);
+      setInputValue('');
+    } else if (e.key === 'Escape') {
+      setEditingCell(null);
+      setInputValue('');
+    }
+  };
+
+  const handleInputBlur = (studentId: number, date: string) => {
+    if (inputValue.trim()) {
+      onMarkSave(studentId, date, inputValue.trim());
+    }
+    setEditingCell(null);
+    setInputValue('');
+  };
+
   const renderMark = (studentId: number, date: string) => {
     const entry = journalData[studentId]?.[date];
+    const isEditing = editingCell?.studentId === studentId && editingCell?.date === date;
+    
+    if (isEditing) {
+      return (
+        <Input
+          autoFocus
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={(e) => handleInputKeyDown(e, studentId, date)}
+          onBlur={() => handleInputBlur(studentId, date)}
+          className="h-full border-0 text-center font-semibold text-sm p-0 focus-visible:ring-2 focus-visible:ring-blue-500"
+          placeholder="2-5, Н, П, Б"
+        />
+      );
+    }
     
     if (!entry) {
       return (
         <div 
           className="w-full h-full hover:bg-blue-50 cursor-pointer flex items-center justify-center transition-colors"
-          onClick={() => onMarkClick(studentId, date)}
+          onClick={() => handleCellClick(studentId, date)}
         >
           <span className="text-slate-300 text-xs">•</span>
         </div>
@@ -95,8 +161,8 @@ const JournalTable = ({
     return (
       <div
         className={`w-full h-full ${bgColor} flex items-center justify-center font-semibold text-sm cursor-pointer hover:opacity-75 transition-opacity ${textColor} border-r ${borderColor}`}
-        onClick={() => onMarkClick(studentId, date)}
-        title={entry.comment || 'Нажмите для редактирования'}
+        onClick={() => handleCellClick(studentId, date)}
+        title="Нажмите для редактирования"
       >
         {displayValue}
       </div>

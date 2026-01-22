@@ -147,25 +147,25 @@ def get_grades(cursor, event):
     
     if student_id:
         cursor.execute("""
-            SELECT g.id, g.grade, g.comment, g.grade_date,
+            SELECT g.id, g.grade, g.mark_type, g.comment, g.grade_date, g.period,
                    s.name as subject_name,
                    u.full_name as teacher_name
             FROM grades g
             JOIN subjects s ON g.subject_id = s.id
             JOIN users u ON g.teacher_id = u.id
-            WHERE g.student_id = %s
+            WHERE g.student_id = %s AND g.mark_type = 'grade'
             ORDER BY g.grade_date DESC
         """, (student_id,))
     elif class_name:
         cursor.execute("""
-            SELECT g.id, g.grade, g.comment, g.grade_date,
+            SELECT g.id, g.grade, g.mark_type, g.comment, g.grade_date, g.period,
                    s.name as subject_name,
                    st.full_name as student_name,
                    st.id as student_id
             FROM grades g
             JOIN subjects s ON g.subject_id = s.id
             JOIN users st ON g.student_id = st.id
-            WHERE st.class_name = %s
+            WHERE st.class_name = %s AND g.mark_type = 'grade'
             ORDER BY g.grade_date DESC
         """, (class_name,))
     else:
@@ -349,6 +349,8 @@ def get_classes(cursor):
     return success_response({'classes': classes})
 
 def get_journal(cursor, event):
+    from datetime import datetime, timedelta
+    
     params = event.get('queryStringParameters', {})
     subject_id = params.get('subjectId')
     class_name = params.get('className')
@@ -370,7 +372,7 @@ def get_journal(cursor, event):
         FROM grades
         WHERE subject_id = %s 
         AND student_id IN (SELECT id FROM users WHERE class_name = %s)
-        AND (period = %s OR period IS NULL)
+        AND period = %s
         ORDER BY grade_date
     """, (subject_id, class_name, period))
     
@@ -386,7 +388,24 @@ def get_journal(cursor, event):
     
     period_grades = {row['student_id']: row['final_grade'] for row in cursor.fetchall()}
     
-    dates = sorted(list(set([str(g['grade_date']) for g in grades_list])))
+    period_dates = {
+        '1_quarter': ('2026-09-01', '2026-10-31'),
+        '2_quarter': ('2026-11-01', '2026-12-31'),
+        '3_quarter': ('2027-01-09', '2027-03-25'),
+        '4_quarter': ('2027-03-26', '2027-05-31'),
+        'year': ('2026-09-01', '2027-05-31')
+    }
+    
+    start_str, end_str = period_dates.get(period, ('2026-09-01', '2026-10-31'))
+    start_date = datetime.strptime(start_str, '%Y-%m-%d')
+    end_date = datetime.strptime(end_str, '%Y-%m-%d')
+    
+    dates = []
+    current = start_date
+    while current <= end_date:
+        if current.weekday() < 5:
+            dates.append(current.strftime('%Y-%m-%d'))
+        current += timedelta(days=1)
     
     journal = {}
     for student in students:
@@ -416,16 +435,28 @@ def save_mark(cursor, conn, event):
     subject_id = body.get('subjectId')
     teacher_id = body.get('teacherId')
     date = body.get('date')
-    mark_type = body.get('markType', 'grade')
-    grade = body.get('grade')
-    comment = body.get('comment', '')
+    mark_value = body.get('markValue', '').strip().upper()
     period = body.get('period', '1_quarter')
     
-    if not all([student_id, subject_id, teacher_id, date, mark_type]):
+    if not all([student_id, subject_id, teacher_id, date, mark_value]):
         return error_response('Заполните все обязательные поля')
     
-    if mark_type == 'grade' and not grade:
-        return error_response('Требуется оценка для типа "grade"')
+    mark_type = 'grade'
+    grade = None
+    
+    if mark_value in ['2', '3', '4', '5']:
+        mark_type = 'grade'
+        grade = int(mark_value)
+    elif mark_value in ['Н', 'N']:
+        mark_type = 'absent'
+    elif mark_value in ['П', 'P']:
+        mark_type = 'excused'
+    elif mark_value in ['Б', 'B']:
+        mark_type = 'sick'
+    elif mark_value in ['Н/А', 'H/A', 'N/A']:
+        mark_type = 'not_attested'
+    else:
+        return error_response('Неверное значение отметки. Используйте: 2-5, Н, П, Б, Н/А')
     
     cursor.execute("""
         SELECT id FROM grades 
@@ -437,14 +468,14 @@ def save_mark(cursor, conn, event):
     if existing:
         cursor.execute("""
             UPDATE grades 
-            SET grade = %s, mark_type = %s, comment = %s, teacher_id = %s, period = %s
+            SET grade = %s, mark_type = %s, teacher_id = %s, period = %s
             WHERE id = %s
-        """, (grade, mark_type, comment, teacher_id, period, existing['id']))
+        """, (grade, mark_type, teacher_id, period, existing['id']))
     else:
         cursor.execute("""
-            INSERT INTO grades (student_id, subject_id, teacher_id, grade, mark_type, comment, grade_date, period)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (student_id, subject_id, teacher_id, grade, mark_type, comment, date, period))
+            INSERT INTO grades (student_id, subject_id, teacher_id, grade, mark_type, grade_date, period)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (student_id, subject_id, teacher_id, grade, mark_type, date, period))
     
     conn.commit()
     return success_response({'success': True})
