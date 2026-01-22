@@ -63,6 +63,8 @@ def handler(event: dict, context) -> dict:
             return save_period_grade(cursor, conn, event)
         elif path == 'delete_mark':
             return delete_mark(cursor, conn, event)
+        elif path == 'delete_user':
+            return delete_user(cursor, conn, event)
         else:
             return error_response('Unknown action', 400)
             
@@ -495,6 +497,32 @@ def delete_mark(cursor, conn, event):
         DELETE FROM grades 
         WHERE student_id = %s AND subject_id = %s AND grade_date = %s
     """, (student_id, subject_id, date))
+    
+    conn.commit()
+    return success_response({'success': True})
+
+def delete_user(cursor, conn, event):
+    body = json.loads(event.get('body', '{}'))
+    
+    user_id = body.get('userId')
+    
+    if not user_id:
+        return error_response('Требуется userId')
+    
+    cursor.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+    
+    if not user:
+        return error_response('Пользователь не найден')
+    
+    if user['role'] == 'admin':
+        return error_response('Нельзя удалить администратора')
+    
+    cursor.execute("DELETE FROM grades WHERE student_id = %s OR teacher_id = %s", (user_id, user_id))
+    cursor.execute("DELETE FROM homework WHERE teacher_id = %s", (user_id,))
+    cursor.execute("DELETE FROM period_grades WHERE student_id = %s OR teacher_id = %s", (user_id, user_id))
+    cursor.execute("DELETE FROM teacher_subjects WHERE teacher_id = %s", (user_id,))
+    cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
     
     conn.commit()
     return success_response({'success': True})

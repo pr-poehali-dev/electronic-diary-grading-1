@@ -7,6 +7,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import Icon from '@/components/ui/icon';
 import GradeJournal from '@/components/GradeJournal';
 
 const API_URL = 'https://functions.poehali.dev/bfbeda34-cef5-4bdd-946d-7a5dcae64e26';
@@ -39,6 +50,8 @@ interface AdminPanelProps {
 const AdminPanel = ({ user, subjects, users, loadUsers, toast, getGradeColor }: AdminPanelProps) => {
   const [newUser, setNewUser] = useState({ username: '', password: '', role: '', fullName: '', email: '', phone: '', className: '' });
   const [allGrades, setAllGrades] = useState<any[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<any>(null);
 
   useEffect(() => {
     loadAllGrades();
@@ -83,6 +96,37 @@ const AdminPanel = ({ user, subjects, users, loadUsers, toast, getGradeColor }: 
     }
   };
 
+  const openDeleteDialog = (u: any) => {
+    setUserToDelete(u);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      const response = await fetch(`${API_URL}?action=delete_user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userToDelete.id })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast({ title: 'Успешно', description: 'Пользователь удалён' });
+        setDeleteDialogOpen(false);
+        setUserToDelete(null);
+        loadUsers();
+        loadAllGrades();
+      } else {
+        toast({ title: 'Ошибка', description: data.error, variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Ошибка', description: 'Не удалось удалить пользователя', variant: 'destructive' });
+    }
+  };
+
   return (
     <Tabs defaultValue="users" className="space-y-6">
       <TabsList>
@@ -112,6 +156,7 @@ const AdminPanel = ({ user, subjects, users, loadUsers, toast, getGradeColor }: 
                   <TableHead>Роль</TableHead>
                   <TableHead>Класс</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -126,6 +171,18 @@ const AdminPanel = ({ user, subjects, users, loadUsers, toast, getGradeColor }: 
                     </TableCell>
                     <TableCell>{u.class_name || '-'}</TableCell>
                     <TableCell>{u.email || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      {u.role !== 'admin' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openDeleteDialog(u)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Icon name="Trash2" size={16} />
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -258,6 +315,25 @@ const AdminPanel = ({ user, subjects, users, loadUsers, toast, getGradeColor }: 
         </Card>
       </TabsContent>
     </Tabs>
+
+    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Удалить пользователя?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Вы уверены, что хотите удалить пользователя <strong>{userToDelete?.full_name}</strong>? 
+            Это действие нельзя отменить. Все оценки и задания этого пользователя будут удалены.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Отмена</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDeleteUser} className="bg-red-600 hover:bg-red-700">
+            Удалить
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>
   );
 };
 
